@@ -248,7 +248,14 @@ fn fx(b: &[u8], o: usize) -> f32 {
     (i64::from_le_bytes(b[o..o + 8].try_into().unwrap()) as f64 / 4294967296.0) as f32
 }
 fn in_world(v: [f32; 3]) -> bool {
-    v.iter().all(|c| c.is_finite()) && (0.0..=WORLD).contains(&v[0]) && (0.0..=WORLD).contains(&v[2]) && v[1] > -1000.0 && v[1] < 4000.0
+    // (0,0,0) nunca é posição de personagem: é objeto zerado/liberado. Sem isto o cache de offsets
+    // aceita o lixo para sempre (o mapa diz "personagem encontrado" no canto do mundo).
+    v.iter().all(|c| c.is_finite())
+        && !(v[0] == 0.0 && v[2] == 0.0)
+        && (0.0..=WORLD).contains(&v[0])
+        && (0.0..=WORLD).contains(&v[2])
+        && v[1] > -1000.0
+        && v[1] < 4000.0
 }
 fn yaw_quat(b: &[u8]) -> Option<[f32; 4]> {
     let q = [0, 4, 8, 12].map(|o| f32::from_le_bytes(b[o..o + 4].try_into().unwrap()));
@@ -397,6 +404,12 @@ fn run_pointer(p: &Proc, pid: u32, emit: &mut impl FnMut(&PlayerState)) -> bool 
                 // aqui. Antes, 3 s sem leitura e sem nunca ter lido faziam cair na busca heurística antiga, que
                 // nunca voltava — com o mapa aberto antes do jogo, o personagem não era mais achado.
                 fails += 1;
+                // Sob Wine o ponteiro fixo não resolve (acha objeto zerado ou nada). Depois de 20 s
+                // sem nenhuma leitura válida, devolve false e deixa a busca heurística tentar —
+                // ela acha o personagem pelas centenas de cópias que se movem juntas.
+                if !leu && inicio.elapsed() > Duration::from_secs(20) {
+                    return false;
+                }
                 if fails % 90 == 0 {
                     // nunca achou o personagem em 2 min com o jogo legível: menu parado ou versão do jogo desconhecida
                     let st = if !leu && inicio.elapsed() > Duration::from_secs(120) { "sem_personagem" } else { "procurando" };
@@ -492,8 +505,14 @@ pub fn run(mut emit: impl FnMut(&PlayerState)) {
         let mut last_xyz = [0f32; 3];
         let mut still_since = Instant::now();
         let mut tick: u64 = 0;
+        // 2 min sem travar em ninguém: volta ao modo ponteiro em vez de ficar preso aqui.
+        // Os dois modos se revezam, então nenhum dos dois é beco sem saída.
+        let inicio_heur = Instant::now();
         loop {
             tick += 1;
+            if locked.is_empty() && inicio_heur.elapsed() > Duration::from_secs(120) {
+                break;
+            }
             if RESET.swap(false, std::sync::atomic::Ordering::Relaxed) {
                 cands.clear();
                 locked.clear();
