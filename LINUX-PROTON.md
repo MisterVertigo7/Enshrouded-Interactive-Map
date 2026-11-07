@@ -15,7 +15,6 @@ drag-and-drop handler, which this app does not use.
 | WebView2 GPU child processes | 12–18, crash-looping | **0** |
 | Lifetime with the game running | dies 35 s – 4 min in | **8 min 26 s clean**, then still running |
 | Window contents | blank | the map draws |
-| Mouse cursor inside the window | missing | works |
 | Live player marker | — | follows the character |
 
 Tested on Fedora 44, KDE Plasma 6.7 (Wayland), AMD RX 9070 XT, Proton Experimental, WebView2
@@ -167,6 +166,24 @@ any user whose offsets go stale after a game patch gets the same frozen marker, 
 fall back to the scanner instead of being told the character had been found.
 
 ---
+
+## Known limitation: no mouse cursor inside the window
+
+**The mouse pointer is not drawn anywhere in the map's content area.** It works — clicks land,
+hover highlights appear, dragging the map works — you simply cannot see where you are pointing.
+The cursor is visible on the title bar and the window buttons, because those are drawn by the
+desktop, not by the app.
+
+**This is not caused by anything on this branch.** Tested on 2026-11-07 by running the
+unpatched upstream `v1.1.1` build in the same prefix with the game closed: identical behaviour.
+It is WebView2 under Wine, and it affects every Linux user of this app regardless of build.
+
+Not yet diagnosed. Mouse events clearly reach Chromium, so it is the cursor *drawing* that
+fails, somewhere between Chromium's `SetCursor` on its content child window and Wine. If you
+know the fix, please say so — it is the last rough edge.
+
+An earlier version of this document claimed the cursor worked. That was wrong, and is corrected
+here.
 
 ## Building it
 
