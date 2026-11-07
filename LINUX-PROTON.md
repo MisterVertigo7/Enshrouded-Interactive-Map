@@ -16,6 +16,7 @@ drag-and-drop handler, which this app does not use.
 | Lifetime with the game running | dies 35 s – 4 min in | **8 min 26 s clean**, then still running |
 | Window contents | blank | the map draws |
 | Live player marker | — | follows the character |
+| Mouse cursor | not drawn | not drawn either — a Wine bug, with a one-click workaround below |
 
 Tested on Fedora 44, KDE Plasma 6.7 (Wayland), AMD RX 9070 XT, Proton Experimental, WebView2
 runtime `157.0.4341.42`, game build `26430625`.
@@ -167,23 +168,57 @@ fall back to the scanner instead of being told the character had been found.
 
 ---
 
-## Known limitation: no mouse cursor inside the window
+## The mouse cursor, and how to get one
 
-**The mouse pointer is not drawn anywhere in the map's content area.** It works — clicks land,
-hover highlights appear, dragging the map works — you simply cannot see where you are pointing.
-The cursor is visible on the title bar and the window buttons, because those are drawn by the
-desktop, not by the app.
+**By default the mouse pointer is not drawn anywhere in the map's content area.** Clicks land,
+hover highlights appear, dragging works — you simply cannot see where you are pointing. The
+cursor is visible on the title bar, because the desktop draws that, not the app.
 
-**This is not caused by anything on this branch.** Tested on 2026-11-07 by running the
-unpatched upstream `v1.1.1` build in the same prefix with the game closed: identical behaviour.
-It is WebView2 under Wine, and it affects every Linux user of this app regardless of build.
+**This is a Wine bug and it affects every WebView2 app, not just this one.** With
+`WINEDEBUG=+cursor`:
 
-Not yet diagnosed. Mouse events clearly reach Chromium, so it is the cursor *drawing* that
-fails, somewhere between Chromium's `SetCursor` on its content child window and Wine. If you
-know the fix, please say so — it is the last rough edge.
+```
+warn:cursor:get_icon_ptr icon handle 0x600ca from other process
+```
 
-An earlier version of this document claimed the cursor worked. That was wrong, and is corrected
-here.
+WebView2 runs its browser in a separate process and creates the cursor there. The process
+owning the window cannot resolve that handle, so Wine sets no cursor and the window **keeps
+whatever cursor was set last**. That single fact explains everything:
+
+| Condition | Last cursor set | What you see |
+|---|---|---|
+| Map alone | none | invisible |
+| Another Wine app open first | plain arrow | a normal arrow — looks fixed |
+| Wine virtual desktop | the desktop's resize arrow | stuck double-arrow |
+
+So the arrow you may see is never the map's own. Confirmed against the **unpatched** upstream
+`v1.1.1` build in the same prefix: identical. `winecfg` in that prefix has a perfectly normal
+cursor, so Wine's cursor handling is otherwise fine.
+
+### The workaround
+
+Nine tests pinned down two rules. **Both are required; neither works alone:**
+
+1. **Click, or move the pointer into, another Wine window.** Merely having one open — even for
+   30 seconds — does nothing. Parking one under a stationary pointer does nothing. A synthetic
+   pointer nudge via `xdotool` does not help either.
+2. **That window must still be alive when the map's window is created.** Click it, close it,
+   *then* start the map, and there is no cursor.
+
+Interacting with the helper after the map window already exists does nothing.
+
+A corollary worth stating, because it is the obvious design: **a message box with an OK button
+cannot do this** — clicking OK closes it, which breaks rule 2.
+
+So the working sequence is: **open a helper window → click it → start the map → close the
+helper.** The cursor survives the helper closing. One click per launch.
+
+A launcher doing this automatically is in the write-up this branch is used with; the short
+version is to open any Wine app in the same prefix, click it, then start the map from the same
+session, e.g. via `protontricks-launch`.
+
+**Not reported to WineHQ yet.** If someone recognises this, a fix there would remove the need
+for any of it.
 
 ## Building it
 
