@@ -248,10 +248,12 @@ fn fx(b: &[u8], o: usize) -> f32 {
     (i64::from_le_bytes(b[o..o + 8].try_into().unwrap()) as f64 / 4294967296.0) as f32
 }
 fn in_world(v: [f32; 3]) -> bool {
-    // (0,0,0) nunca é posição de personagem: é objeto zerado/liberado. Sem isto o cache de offsets
-    // aceita o lixo para sempre (o mapa diz "personagem encontrado" no canto do mundo).
+    // Nada a menos de 1 m da origem é personagem: é objeto zerado/liberado, ou ponto fixo quase zero
+    // que a tela arredonda para 0,0. Sem isto o cache de offsets aceita o lixo para sempre
+    // (o mapa diz "personagem encontrado" no canto do mundo). Mesmo critério que cam_ok já usa.
     v.iter().all(|c| c.is_finite())
-        && !(v[0] == 0.0 && v[2] == 0.0)
+        && v[0] > 1.0
+        && v[2] > 1.0
         && (0.0..=WORLD).contains(&v[0])
         && (0.0..=WORLD).contains(&v[2])
         && v[1] > -1000.0
@@ -389,6 +391,8 @@ fn run_pointer(p: &Proc, pid: u32, emit: &mut impl FnMut(&PlayerState)) -> bool 
     let mut leu = false;
     let mut fails = 0;
     let mut last: Option<[f32; 3]> = None;
+    let mut primeira: Option<[f32; 3]> = None;
+    let mut mudou = false;
     let mut anchor: Option<[f32; 3]> = None;
     let mut heading = 0f32;
     let mut still_since = Instant::now();
@@ -421,6 +425,22 @@ fn run_pointer(p: &Proc, pid: u32, emit: &mut impl FnMut(&PlayerState)) -> bool 
             Some([x, y, z]) => {
                 fails = 0;
                 leu = true;
+                // Uma posição que nunca muda não é um personagem: é lixo que passou na validação.
+                // Depois que mudar uma vez, nunca mais cai para a heurística (jogador parado é normal).
+                match primeira {
+                    None => primeira = Some([x, y, z]),
+                    Some(p0) => {
+                        if !mudou && dist2(p0, x, z) > 0.5 {
+                            mudou = true;
+                        }
+                    }
+                }
+                if !mudou && inicio.elapsed() > Duration::from_secs(60) {
+                    return false;
+                }
+                if std::env::var("EMB_DEBUG").is_ok() && tick % 60 == 0 {
+                    eprintln!("debug ponteiro: x={x:.1} y={y:.1} z={z:.1} mudou={mudou}");
+                }
                 if let Some(l) = last {
                     if dist2(l, x, z) > 0.01 {
                         still_since = Instant::now();
