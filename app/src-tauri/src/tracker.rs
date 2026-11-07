@@ -411,7 +411,7 @@ fn run_pointer(p: &Proc, pid: u32, emit: &mut impl FnMut(&PlayerState)) -> bool 
                 // Sob Wine o ponteiro fixo não resolve (acha objeto zerado ou nada). Depois de 20 s
                 // sem nenhuma leitura válida, devolve false e deixa a busca heurística tentar —
                 // ela acha o personagem pelas centenas de cópias que se movem juntas.
-                if !leu && inicio.elapsed() > Duration::from_secs(20) {
+                if !leu && inicio.elapsed() > Duration::from_secs(15) {
                     return false;
                 }
                 if fails % 90 == 0 {
@@ -435,7 +435,7 @@ fn run_pointer(p: &Proc, pid: u32, emit: &mut impl FnMut(&PlayerState)) -> bool 
                         }
                     }
                 }
-                if !mudou && inicio.elapsed() > Duration::from_secs(60) {
+                if !mudou && inicio.elapsed() > Duration::from_secs(15) {
                     return false;
                 }
                 if std::env::var("EMB_DEBUG").is_ok() && tick % 60 == 0 {
