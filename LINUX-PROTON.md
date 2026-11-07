@@ -217,8 +217,20 @@ A launcher doing this automatically is in the write-up this branch is used with;
 version is to open any Wine app in the same prefix, click it, then start the map from the same
 session, e.g. via `protontricks-launch`.
 
-**Not reported to WineHQ yet.** If someone recognises this, a fix there would remove the need
-for any of it.
+### It is a known Wine bug, with a patch already proposed
+
+**[WineHQ bug 58922 — "Mouse cursor invisible in WebView2 browser"](https://bugs.winehq.org/show_bug.cgi?id=58922)**,
+open since 2025-11-04. Comment 3 there says it directly: *"WebView2 calls SetCursor() from a
+different process than the one owning the window"*. It is reported against the Adobe Creative
+Cloud installer and other WebView2 apps too, so nothing here is specific to this map, to Tauri,
+or to games.
+
+**Attachment 81604 on that bug is a patch** making `winex11.drv` fall back to a standard X11
+arrow when the cross-process handle cannot be resolved. You lose specialised cursor shapes but
+you get a visible pointer. If it lands, none of the workaround above is needed.
+
+Worth confirming on that bug if you hit this — it was still UNCONFIRMED a year after being
+filed, and reproductions are what move it.
 
 ## Building it
 
