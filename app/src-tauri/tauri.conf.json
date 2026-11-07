@@ -11,7 +11,16 @@
   },
   "app": {
     "windows": [
-      { "label": "main", "title": "Mapa Interactive Enshrouded", "width": 1600, "height": 960, "minWidth": 900, "minHeight": 600 }
+      {
+        "label": "main",
+        "title": "Mapa Interactive Enshrouded",
+        "width": 1600,
+        "height": 960,
+        "minWidth": 900,
+        "minHeight": 600,
+        "dragDropEnabled": false,
+        "additionalBrowserArgs": "--no-sandbox --in-process-gpu --disable-direct-composition --disable-direct-composition-video-overlays --disable-checker-imaging --disable-partial-raster --disable-backgrounding-occluded-windows --disable-renderer-backgrounding --disable-background-timer-throttling --enable-features=RunAllCompositorStagesBeforeDraw --disable-features=CalculateNativeWinOcclusion,DirectComposition,DirectCompositionLayers,WidgetLayering,RendererCodeIntegrity,TouchEvents,TouchSelectionStrategy,DWriteFontProxy,msWebOOUI,msPdfOOUI,msSmartScreenProtection"
+      }
     ],
     "security": { "csp": null }
   },
